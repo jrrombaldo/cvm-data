@@ -1,0 +1,45 @@
+name: Refresh CVM data
+
+on:
+  schedule:
+    # - cron: "0 13 * * *"
+
+jobs:
+  clean-workflow:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9 
+      
+      - name: execute python
+        run: |
+          pip install -r requirements.txt
+          python3 ./downlaoder.py
+          
+      - name: unpack and clean files
+        run: |
+          cd ./results
+          du -kh
+          ls -1 *.zip | xargs -I {} unzip -o {}
+          rm -rf *.zip
+          du -kh
+
+      - name: commit and push results
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'jrrombaldo@users.noreply.github.com'
+          echo $GITHUB_REPOSITORY
+          echo ${GITHUB_REF:11}
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          git checkout "${GITHUB_REF:11}"
+          git add .
+          git commit --all --message "Github Action - Updated Update" || true
+          git push 
